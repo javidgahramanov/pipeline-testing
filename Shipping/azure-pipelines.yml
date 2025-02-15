@@ -1,0 +1,18 @@
+trigger:
+  branches:
+    include:
+      - develop
+  paths:
+    include:
+      - "shipping"
+      - "/user/Sdk"
+      - "/order/Sdk"
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  - group: Global
+  - template: ../../yml-templates/tpl-service-vars.yml
+  - name: serviceName 
+    value: "UserService"
