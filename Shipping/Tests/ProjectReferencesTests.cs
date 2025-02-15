@@ -2,24 +2,43 @@ using Microsoft.Build.Locator;
 
 namespace Shipping.Tests;
 
-public class YamlTests
+public abstract class BaseTest : IDisposable
 {
-    [Fact]
-    public void VerifyPipelineTriggers_MatchProjectDependencies()
+    protected readonly string RootDirectory;
+    protected readonly string SolutionPath;
+    protected readonly string PipelineYamlPath;
+
+    static BaseTest()
     {
         MSBuildLocator.RegisterDefaults();
+    }
 
+    protected BaseTest()
+    {
         var baseDirectory = AppContext.BaseDirectory;
         var testsFolder = Directory.GetParent(baseDirectory)?.Parent?.Parent?.FullName!;
-        var rootDirectory = Directory.GetParent(testsFolder)?.FullName!;
-        var yamlFilePath = Path.Combine(rootDirectory, "azure-pipelines.yml");
-        var sln = Path.Combine(rootDirectory, "Shipping.sln");
+        RootDirectory = Directory.GetParent(testsFolder)?.FullName!;
+        SolutionPath = Path.Combine(RootDirectory, "Shipping.sln");
+        PipelineYamlPath = Path.Combine(RootDirectory, "azure-pipelines.yml");
+    }
 
-        var yamlPaths = PipelineTestHelper.GetYamlPaths(yamlFilePath)
+    public void Dispose()
+    {
+        // Unload projects if necessary (MSBuild API allows unloading but is generally not needed)
+    }
+}
+
+
+public class ProjectReferencesTests : BaseTest
+{
+    [Fact]
+    public void VerifyPipeline_MatchProjectDependencies()
+    {
+        var yamlPaths = TestHelper.GetYamlPaths(PipelineYamlPath)
             .Select(c => c.Replace('/', '.').TrimStart('.'))
             .ToList();
 
-        var projectDependencies = PipelineTestHelper.GetProjectDependencies(sln);
+        var projectDependencies = TestHelper.GetSpecificDependencies(SolutionPath, ".SDK");
 
         var missingDependencies = projectDependencies
             .Where(dep => !yamlPaths.Contains(dep, StringComparer.OrdinalIgnoreCase))
@@ -35,6 +54,5 @@ public class YamlTests
         Assert.False(extraYamlPaths.Any(),
             $"Extra paths found in YAML file that do not exist in project dependencies:\n{string.Join("\n", extraYamlPaths)}");
     }
-
 }
 
